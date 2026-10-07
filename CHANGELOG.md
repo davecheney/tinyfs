@@ -1,8 +1,3 @@
-Unreleased
----
-- **fatfs**
-    - Correct stored file timestamps to match the FAT date and time format.
-
 0.5.0
 ---
 - **all**
