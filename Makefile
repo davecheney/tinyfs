@@ -8,6 +8,7 @@ fmt-check:
 	@unformatted=$$(gofmt -l $(FMT_PATHS)); [ -z "$$unformatted" ] && exit 0; echo "Unformatted:"; for fn in $$unformatted; do echo "  $$fn"; done; exit 1
 
 smoke-test:
+	go test ./fatfs
 	go run ./examples/simple-fatfs
 	@mkdir -p build
 	tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/simple-fatfs/

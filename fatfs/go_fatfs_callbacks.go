@@ -86,12 +86,12 @@ func go_fatfs_get_fattime() (t uint32) {
 	now := time.Now().UTC()
 	year, month, day := now.Date()
 	hour, minute, second := now.Hour(), now.Minute(), now.Second()
-	t |= uint32(year-1980) << 24
-	t |= (uint32(month) & 0xF) << 20
-	t |= (uint32(day) & 0x1F) << 15
-	t |= (uint32(hour) & 0x1F) << 10
-	t |= (uint32(minute) & 0x3F) << 4
-	t |= (uint32(second) / 2) & 0xF
+	t |= uint32(year-1980) << 25
+	t |= (uint32(month) & 0xF) << 21
+	t |= (uint32(day) & 0x1F) << 16
+	t |= (uint32(hour) & 0x1F) << 11
+	t |= (uint32(minute) & 0x3F) << 5
+	t |= (uint32(second) / 2) & 0x1F
 	return t
 }
 

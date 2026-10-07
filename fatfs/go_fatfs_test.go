@@ -3,6 +3,7 @@
 package fatfs
 
 import (
+	"encoding/binary"
 	"os"
 	"testing"
 	"time"
@@ -16,7 +17,7 @@ const (
 	testBlockCount = 4096
 )
 
-func TestGetFattimeUTC(t *testing.T) {
+func TestFileModTimeUTC(t *testing.T) {
 	local := time.Local
 	t.Cleanup(func() { time.Local = local })
 
@@ -30,16 +31,42 @@ func TestGetFattimeUTC(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			time.Local = time.FixedZone(tt.name, tt.offset)
+			fs, dev, unmount := createTestFS(t)
+			defer unmount()
+			if typ := Type(fs.fs.fs_type); typ != TypeFAT12 && typ != TypeFAT16 {
+				t.Fatalf("expected FAT12 or FAT16, got %s", typ)
+			}
+
 			before := time.Now().UTC()
-			got := go_fatfs_get_fattime()
+			f, err := fs.OpenFile("UTC.TXT", os.O_CREATE|os.O_WRONLY|os.O_TRUNC)
+			check(t, err)
+			_, err = f.Write([]byte("UTC timestamp"))
+			check(t, err)
+			check(t, f.Close())
 			after := time.Now().UTC()
 
-			// Accept either hour if the clock crosses an hour boundary.
-			hour := int(got >> 10 & 0x1F)
-			if hour != before.Hour() && hour != after.Hour() {
-				t.Fatalf("timestamp hour = %d, want UTC hour %d or %d (local offset %d)",
-					hour, before.Hour(), after.Hour(), tt.offset)
+			root := make([]byte, int(fs.fs.n_rootdir)*32)
+			_, err = dev.ReadAt(root, int64(fs.fs.dirbase)*SectorSize)
+			check(t, err)
+			for offset := 0; offset < len(root); offset += 32 {
+				entry := root[offset : offset+32]
+				if string(entry[:11]) != "UTC     TXT" {
+					continue
+				}
+				// FAT directory entries store modification time at bytes 22-25.
+				clock := binary.LittleEndian.Uint16(entry[22:24])
+				date := binary.LittleEndian.Uint16(entry[24:26])
+				got := time.Date(
+					1980+int(date>>9), time.Month(date>>5&15), int(date&31),
+					int(clock>>11), int(clock>>5&63), int(clock&31)*2, 0, time.UTC,
+				)
+				if got.Before(before.Truncate(2*time.Second)) || got.After(after) {
+					t.Fatalf("stored modification time = %s, want UTC time between %s and %s",
+						got, before.Truncate(2*time.Second), after)
+				}
+				return
 			}
+			t.Fatal("UTC.TXT not found in the root directory")
 		})
 	}
 }
