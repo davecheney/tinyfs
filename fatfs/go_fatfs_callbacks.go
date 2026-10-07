@@ -83,7 +83,7 @@ func go_fatfs_disk_ioctl(drv unsafe.Pointer, cmd uint8, param unsafe.Pointer) in
 
 //export go_fatfs_get_fattime
 func go_fatfs_get_fattime() (t uint32) {
-	now := time.Now()
+	now := time.Now().UTC()
 	year, month, day := now.Date()
 	hour, minute, second := now.Hour(), now.Minute(), now.Second()
 	t |= uint32(year-1980) << 24

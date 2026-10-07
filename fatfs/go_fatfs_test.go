@@ -5,6 +5,7 @@ package fatfs
 import (
 	"os"
 	"testing"
+	"time"
 
 	"tinygo.org/x/tinyfs"
 )
@@ -14,6 +15,34 @@ const (
 	testBlockSize  = 256
 	testBlockCount = 4096
 )
+
+func TestGetFattimeUTC(t *testing.T) {
+	local := time.Local
+	t.Cleanup(func() { time.Local = local })
+
+	for _, tt := range []struct {
+		name   string
+		offset int
+	}{
+		{"UTC", 0},
+		{"East", 14 * 60 * 60},
+		{"West", -12 * 60 * 60},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			time.Local = time.FixedZone(tt.name, tt.offset)
+			before := time.Now().UTC()
+			got := go_fatfs_get_fattime()
+			after := time.Now().UTC()
+
+			// Accept either hour if the clock crosses an hour boundary.
+			hour := int(got >> 10 & 0x1F)
+			if hour != before.Hour() && hour != after.Hour() {
+				t.Fatalf("timestamp hour = %d, want UTC hour %d or %d (local offset %d)",
+					hour, before.Hour(), after.Hour(), tt.offset)
+			}
+		})
+	}
+}
 
 func TestType_String(t *testing.T) {
 	expectString(t, "fatfs: (1) A hard error occurred in the low level disk I/O layer", FileResultErr.Error())
